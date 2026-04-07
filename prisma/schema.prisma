@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FulfillmentType {
+  STORE_PICKUP
+  SHIPPING
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID_PENDING_PREP
+  READY_FOR_PICKUP
+  COMPLETED
+  PAID_PENDING_SHIPMENT
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  AFTER_SALES
+}
+
+model Store {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  address     String
+  contactName String?
+  contactPhone String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventories Inventory[]
+  availabilities StoreSkuAvailability[]
+  orders      Order[]
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  isPublished     Boolean  @default(false)
+  supportsPickup  Boolean  @default(true)
+  supportsShipping Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  skus            Sku[]
+}
+
+model Sku {
+  id         String   @id @default(cuid())
+  productId  String
+  code       String   @unique
+  name       String
+  priceCents Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product    Product  @relation(fields: [productId], references: [id])
+  inventories Inventory[]
+  availabilities StoreSkuAvailability[]
+  orderItems OrderItem[]
+}
+
+model StoreSkuAvailability {
+  id        String   @id @default(cuid())
+  storeId   String
+  skuId     String
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store     Store @relation(fields: [storeId], references: [id])
+  sku       Sku   @relation(fields: [skuId], references: [id])
+
+  @@unique([storeId, skuId])
+}
+
+model Inventory {
+  id            String   @id @default(cuid())
+  storeId       String
+  skuId         String
+  physicalStock Int
+  availableStock Int
+  reservedStock Int
+  damagedStock  Int      @default(0)
+  safeStock     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  store         Store @relation(fields: [storeId], references: [id])
+  sku           Sku   @relation(fields: [skuId], references: [id])
+  inventoryLogs InventoryLog[]
+
+  @@unique([storeId, skuId])
+}
+
+model Order {
+  id               String          @id @default(cuid())
+  orderNo          String          @unique
+  customerId       String
+  storeId          String
+  fulfillmentType  FulfillmentType
+  status           OrderStatus
+  totalAmountCents Int
+  pickupDate       DateTime?
+  pickupTimeSlot   String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  store            Store @relation(fields: [storeId], references: [id])
+  items            OrderItem[]
+  statusLogs       OrderStatusLog[]
+  paymentRecords   PaymentRecord[]
+  shipment         Shipment?
+  shippingAddress  OrderShippingAddressSnapshot?
+  pickupRecord     PickupRecord?
+}
+
+model OrderItem {
+  id             String @id @default(cuid())
+  orderId        String
+  skuId          String
+  quantity       Int
+  unitPriceCents Int
+
+  order          Order @relation(fields: [orderId], references: [id])
+  sku            Sku   @relation(fields: [skuId], references: [id])
+}
+
+model OrderShippingAddressSnapshot {
+  id           String @id @default(cuid())
+  orderId      String @unique
+  receiverName String
+  phone        String
+  province     String
+  city         String
+  district     String
+  detail       String
+  postalCode   String?
+
+  order        Order @relation(fields: [orderId], references: [id])
+}
+
+model Shipment {
+  id             String   @id @default(cuid())
+  orderId        String   @unique
+  courierCompany String
+  trackingNumber String
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  order          Order @relation(fields: [orderId], references: [id])
+}
+
+model PickupRecord {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  pickupCode  String
+  pickedUpAt  DateTime?
+  verifiedBy  String?
+  createdAt   DateTime @default(now())
+
+  order       Order @relation(fields: [orderId], references: [id])
+}
+
+model PaymentRecord {
+  id               String   @id @default(cuid())
+  orderId          String
+  paymentRef       String   @unique
+  paidAmountCents  Int
+  paidAt           DateTime @default(now())
+
+  order            Order @relation(fields: [orderId], references: [id])
+}
+
+model InventoryLog {
+  id             String   @id @default(cuid())
+  inventoryId    String
+  orderId        String?
+  action         String
+  deltaAvailable Int
+  deltaReserved  Int
+  deltaPhysical  Int
+  note           String?
+  createdAt      DateTime @default(now())
+
+  inventory      Inventory @relation(fields: [inventoryId], references: [id])
+}
+
+model OrderStatusLog {
+  id         String      @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  order      Order @relation(fields: [orderId], references: [id])
+}
