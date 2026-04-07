@@ -1,0 +1,13 @@
+{
+  "name": "seafood-commerce",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test -w @seafood/api",
+    "seed": "npm run seed -w @seafood/api"
+  }
+}
