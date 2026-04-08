@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, OrderStatus } from '@prisma/client';
 import { PrismaService } from '../../common/prisma.service';
 
 @Injectable()
@@ -94,8 +94,8 @@ export class OrderRepository {
   async insertOrderStatusLog(
     tx: Prisma.TransactionClient,
     orderId: string,
-    fromStatus: Prisma.OrderStatus | null,
-    toStatus: Prisma.OrderStatus,
+    fromStatus: OrderStatus | null,
+    toStatus: OrderStatus,
     reason?: string
   ) {
     await tx.orderStatusLog.create({
@@ -103,7 +103,7 @@ export class OrderRepository {
     });
   }
 
-  async updateOrderStatus(tx: Prisma.TransactionClient, orderId: string, status: Prisma.OrderStatus) {
+  async updateOrderStatus(tx: Prisma.TransactionClient, orderId: string, status: OrderStatus) {
     return tx.order.update({ where: { id: orderId }, data: { status } });
   }
 
